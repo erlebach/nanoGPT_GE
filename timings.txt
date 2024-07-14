@@ -1,0 +1,37 @@
+Running with mps. These timings indicate that the GPU is not operating 
+at capacity. 
+
+r = 20
+- time_forward=0.005003374999432708 sec
+- time_embeddings_pos=7.045900019875262e-05 sec
+- time_blocks=0.0046130020018608775 sec
+
+r = 40
+- time_forward=0.0052857499995297985 sec
+- time_embeddings_pos=7.029200060060248e-05 sec
+- time_blocks=0.004875458000242361 sec
+
+r = 80
+Timings: class GPT:
+- time_forward=0.004952958999638213 sec
+- time_embeddings_pos=7.612500121467747e-05 sec
+- time_blocks=0.0045751249981549336 sec
+
+r = 200
+- time_forward=0.005479875000673928 sec
+- time_embeddings_pos=7.654200089746155e-05 sec
+- time_blocks=0.005074916998637491 sec
+
+----------------------------------------------------------------------
+CPU timings (device='cpu')
+
+r = 20
+- time_forward=0.27147941700059164 sec
+- time_embeddings_pos=0.0007696669999859296 sec
+- time_blocks=0.2662654190007743 sec
+
+r = 200
+- time_forward=0.3278940419986611 sec
+- time_embeddings_pos=0.0008033330013859086 sec
+- time_blocks=0.32323008100138395 sec
+

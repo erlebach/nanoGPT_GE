@@ -20,6 +20,7 @@ import os
 import time
 import math
 import pickle
+from pprint import pprint
 from contextlib import nullcontext
 
 import numpy as np
@@ -32,6 +33,9 @@ from model_low_rank import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
+
+# configuration parameters are global variables
+
 # I/O
 out_dir = 'out'
 eval_interval = 2000
@@ -76,7 +80,13 @@ compile = True # use PyTorch 2.0 to compile the model to be faster
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
+print("config_keys")
+pprint(config_keys)
+
+# Set `config` dictionary values to global variables. 
 config = {k: globals()[k] for k in config_keys} # will be useful for logging
+print("config")
+pprint(config)
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
@@ -155,6 +165,11 @@ if init_from == 'scratch':
         print("defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)")
     model_args['vocab_size'] = meta_vocab_size if meta_vocab_size is not None else 50304
     gptconf = GPTConfig(**model_args)
+
+    print("==> gptconf")
+    pprint(gptconf)
+    print()
+
     model = GPT(gptconf)
 elif init_from == 'resume':
     print(f"Resuming training from {out_dir}")

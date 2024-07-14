@@ -8,6 +8,7 @@ https://github.com/huggingface/transformers/blob/main/src/transformers/models/gp
 """
 
 import math
+from time import perf_counter
 import inspect
 from dataclasses import dataclass
 
@@ -32,13 +33,14 @@ class CausalSelfAttention(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+
         assert config.n_embd % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
         # self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
-        self.c_attn  = LowRankLinear(config.n_embd, 3 * config.n_embd, r=40, bias=config.bias)
+        self.c_attn  = LowRankLinear(config.n_embd, 3 * config.n_embd, r=config.rank, bias=config.bias)
         # output projection
         # self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.c_proj = LowRankLinear(config.n_embd, config.n_embd, r=40, bias=config.bias)
+        self.c_proj = LowRankLinear(config.n_embd, config.n_embd, r=config.rank, bias=config.bias)
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -85,11 +87,12 @@ class MLP(nn.Module):
     """
     def __init__(self, config):
         super().__init__()
-        self.c_fc    = LowRankLinear(config.n_embd, 4 * config.n_embd, r=40, bias=config.bias)
+        # GE; Should expand the rank consistent with expanding the capacity (have not done so)
+        self.c_fc    = LowRankLinear(config.n_embd, 4 * config.n_embd, r=config.rank, bias=config.bias)
         # self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
         self.gelu    = nn.GELU()
         # self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        self.c_proj  = LowRankLinear(4 * config.n_embd, config.n_embd, r=40, bias=config.bias)
+        self.c_proj  = LowRankLinear(4 * config.n_embd, config.n_embd, r=config.rank, bias=config.bias)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
@@ -103,6 +106,7 @@ class Block(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        config.rank = 20   # <<< GE: SHOULD BE SET VIA ARGUMENT
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
@@ -183,17 +187,26 @@ class GPT(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, idx, targets=None):
+        time_embeddings_pos = 0.
+        time_blocks = 0.
+
+        total_start = perf_counter()
         device = idx.device
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
         # forward the GPT model itself
+        start = perf_counter()
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
+        time_embeddings_pos += perf_counter()-start
+
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
+            start = perf_counter()
             x = block(x)
+            time_blocks += perf_counter() - start
         x = self.transformer.ln_f(x)
 
         if targets is not None:
@@ -204,6 +217,14 @@ class GPT(nn.Module):
             # inference-time mini-optimization: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
             loss = None
+
+        time_forward = perf_counter() - total_start
+
+        print("\nTimings: class GPT: ")
+        print(f"- {time_forward=} sec")
+        print(f"- {time_embeddings_pos=} sec")
+        print(f"- {time_blocks=} sec")
+        print()
 
         return logits, loss
 
