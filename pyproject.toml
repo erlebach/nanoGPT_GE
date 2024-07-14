@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "nanoGPT_GE"
+version = "0.1.0"
+description = "Learning new models described in papers"
+authors = ["erlebach <gordon.erlebach@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.12.1"
+torch = "^2.3.1"
+matplotlib = "^3.9.1"
+einops = "^0.8.0"
+pillow = ">=6.2.1"
+beartype = "^0.18.5"
+jaxtyping = "^0.2.33"
+datasets = "^2.20.0"
+tqdm = "^4.66.4"
+wandb = "^0.17.4"
+transformers = "^4.42.4"
+tiktoken = "^0.7.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
