@@ -8,15 +8,28 @@ https://github.com/huggingface/transformers/blob/main/src/transformers/models/gp
 """
 
 import math
-from time import perf_counter
+# from time import perf_counter
 import inspect
 from dataclasses import dataclass
+from timers import PerfCounterTimer as Timer
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from low_rank import LowRankLinear
+from contextlib import contextmanager
+
+"""
+@contextmanager
+def perf_counter_timer(message="Elapsed time"):
+    start_time = perf_counter()
+    yield
+    end_time = perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"{message}: {elapsed_time:.6f} seconds")
+"""
+
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -96,10 +109,11 @@ class MLP(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
-        x = self.c_fc(x)
-        x = self.gelu(x)
-        x = self.c_proj(x)
-        x = self.dropout(x)
+        with Timer("MLP.forward")():
+            x = self.c_fc(x)
+            x = self.gelu(x)
+            x = self.c_proj(x)
+            x = self.dropout(x)
         return x
 
 class Block(nn.Module):
@@ -113,8 +127,11 @@ class Block(nn.Module):
         self.mlp = MLP(config)
 
     def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
+        with Timer("Block.forward:")():
+            with Timer("attn layer:")():
+                x = x + self.attn(self.ln_1(x))
+            with Timer("mlp layer: ")():
+                x = x + self.mlp(self.ln_2(x))
         return x
 
 @dataclass
@@ -159,6 +176,7 @@ class GPT(nn.Module):
         # report number of parameters
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
+
     def get_num_params(self, non_embedding=True):
         """
         Return the number of parameters in the model.
@@ -187,45 +205,41 @@ class GPT(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, idx, targets=None):
-        time_embeddings_pos = 0.
-        time_blocks = 0.
+        print("inside GPT forward")
+        with Timer("GPT.forward")():
+            time_embeddings_pos = 0.
+            time_blocks = 0.
 
-        total_start = perf_counter()
-        device = idx.device
-        b, t = idx.size()
-        assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
-        pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
+            # total_start = perf_counter()
+            device = idx.device
+            b, t = idx.size()
+            assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+            pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
-        # forward the GPT model itself
-        start = perf_counter()
-        tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
-        pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
-        time_embeddings_pos += perf_counter()-start
+            # forward the GPT model itself
+            with Timer("time_embedding_pos:")():
+                tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
+                pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
 
-        x = self.transformer.drop(tok_emb + pos_emb)
-        for block in self.transformer.h:
-            start = perf_counter()
-            x = block(x)
-            time_blocks += perf_counter() - start
-        x = self.transformer.ln_f(x)
+            x = self.transformer.drop(tok_emb + pos_emb)
+            with Timer("transformer blocks:")():
+                for block in self.transformer.h:
+                    x = block(x)
 
-        if targets is not None:
-            # if we are given some desired targets also calculate the loss
-            logits = self.lm_head(x)
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
-        else:
-            # inference-time mini-optimization: only forward the lm_head on the very last position
-            logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
-            loss = None
+            # layer norm
+            x = self.transformer.ln_f(x)
 
-        time_forward = perf_counter() - total_start
+            if targets is not None:
+                # if we are given some desired targets also calculate the loss
+                with Timer("Loss: ")():
+                    logits = self.lm_head(x)
+                    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            else:
+                # inference-time mini-optimization: only forward the lm_head on the very last position
+                logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
+                loss = None
 
-        print("\nTimings: class GPT: ")
-        print(f"- {time_forward=} sec")
-        print(f"- {time_embeddings_pos=} sec")
-        print(f"- {time_blocks=} sec")
-        print()
-
+        Timer.report("GPT foward summary:")
         return logits, loss
 
     def crop_block_size(self, block_size):
