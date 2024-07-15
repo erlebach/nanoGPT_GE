@@ -17,6 +17,7 @@ class LowRankLinear(nn.Linear):
         self, in_features: int, out_features: int, *args, r: int = 40, **kwargs
     ) -> None:
         super().__init__(in_features, out_features, *args, **kwargs)
+        self.r = r
         print("kwargs"); pprint(kwargs)
         print(f"{in_features=}, {out_features=}")
 
@@ -27,17 +28,14 @@ class LowRankLinear(nn.Linear):
         del self.weight
 
     def forward (self, input):
-    #def forward(
-        #self, input: Float[T, ["... in_features"]]
-    #) -> Float[T, ["... out_features"]]:
         """
-        output: x @ (B @ A) + bias
+        output: input @ (B @ A) + bias
         """
-        # print(f"{input.shape=}")
-        # print(f"{self.low_rank_matrix_B.shape=}")
-        # print(f"{self.low_rank_matrix_A.shape=}")
-        # print(f"{self.bias=}")
-        # quit()
+        print(f"{input.shape=}")
+        print(f"{self.low_rank_matrix_B.shape=}")
+        print(f"{self.low_rank_matrix_A.shape=}")
+        # print(f"Floats: {input.shape[0]
+
         if self.bias is not None:
             return (input @ self.low_rank_matrix_B) @ self.low_rank_matrix_A + self.bias
         else:
