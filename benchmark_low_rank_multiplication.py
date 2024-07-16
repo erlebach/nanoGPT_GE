@@ -22,7 +22,6 @@ with Timer("Initialization")():
     x = randn(seq, d)
 
 out_dict = Timer.report("\nTimings:")
-# df = update_dataframe(None, out_dict)
 Timer.reset()  # reset main timing dict
 
 
