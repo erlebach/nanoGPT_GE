@@ -8,6 +8,7 @@ https://github.com/huggingface/transformers/blob/main/src/transformers/models/gp
 """
 
 import math
+from pprint import pprint
 # from time import perf_counter
 import inspect
 from dataclasses import dataclass
@@ -46,16 +47,18 @@ class CausalSelfAttention(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        print("CausalSelfAttention, config")
+        print(config)
 
         assert config.n_embd % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
         # self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
         #                               in               out
-        self.c_attn  = LowRankLinear(config.n_embd, 3 * config.n_embd, r=config.rank, bias=config.bias)
+        self.c_attn  = LowRankLinear(config.n_embd, 3 * config.n_embd, r=config.rank, bias=config.bias).to(config.device)
         # print(f"{config.n_embd=}, {3*config.n_embd=}")
         # output projection
         # self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        self.c_proj = LowRankLinear(config.n_embd, config.n_embd, r=config.rank, bias=config.bias)
+        self.c_proj = LowRankLinear(config.n_embd, config.n_embd, r=config.rank, bias=config.bias).to(config.device)
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -108,11 +111,11 @@ class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
         # GE; Should expand the rank consistent with expanding the capacity (have not done so)
-        self.c_fc    = LowRankLinear(config.n_embd, 4 * config.n_embd, r=config.rank, bias=config.bias)
+        self.c_fc    = LowRankLinear(config.n_embd, 4 * config.n_embd, r=config.rank, bias=config.bias).to(config.device)
         # self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
         self.gelu    = nn.GELU()
         # self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        self.c_proj  = LowRankLinear(4 * config.n_embd, config.n_embd, r=config.rank, bias=config.bias)
+        self.c_proj  = LowRankLinear(4 * config.n_embd, config.n_embd, r=config.rank, bias=config.bias).to(config.device)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
