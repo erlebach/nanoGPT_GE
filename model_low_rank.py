@@ -50,7 +50,9 @@ class CausalSelfAttention(nn.Module):
         assert config.n_embd % config.n_head == 0
         # key, query, value projections for all heads, but in a batch
         # self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
+        #                               in               out
         self.c_attn  = LowRankLinear(config.n_embd, 3 * config.n_embd, r=config.rank, bias=config.bias)
+        # print(f"{config.n_embd=}, {3*config.n_embd=}")
         # output projection
         # self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
         self.c_proj = LowRankLinear(config.n_embd, config.n_embd, r=config.rank, bias=config.bias)
@@ -70,6 +72,11 @@ class CausalSelfAttention(nn.Module):
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
+        # print("B, T, C= ", B, T, C)
+        # print(f"{dir(self.c_attn)=}")
+        # self.c_attn.in_features=1024, self.c_attn.out_features=3072
+        # print(f"{self.c_attn.in_features=}, {self.c_attn.out_features=}")
+        # print("=====")
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)
