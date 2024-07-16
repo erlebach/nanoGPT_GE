@@ -23,8 +23,8 @@ class LowRankLinear(nn.Linear):
 
         # could lead to slower convergence if not initialized properly
         # self.low_rank_matrix_B = nn.Parameter(torch.zeros(out_features, r))
-        self.low_rank_matrix_B = nn.Parameter(torch.randn(in_features, r))
-        self.low_rank_matrix_A = nn.Parameter(torch.randn(r, out_features))
+        self.low_rank_matrix_B = nn.Parameter(torch.randn(in_features, r)).to('mps') #config.device)
+        self.low_rank_matrix_A = nn.Parameter(torch.randn(r, out_features)).to('mps') #config.device)
         del self.weight
 
     def forward (self, input):
@@ -35,6 +35,8 @@ class LowRankLinear(nn.Linear):
         # print(f"{self.low_rank_matrix_B.shape=}")
         # print(f"{self.low_rank_matrix_A.shape=}")
         # print(f"Floats: {input.shape[0]
+
+        input = input.to('mps')  # Not best place to do this
 
         if self.bias is not None:
             return (input @ self.low_rank_matrix_B) @ self.low_rank_matrix_A + self.bias
