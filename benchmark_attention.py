@@ -19,7 +19,7 @@ from torch import Tensor as T
 from torch import randn
 from dataclasses import dataclass
 
-b = 1
+b = 16
 seq = 256
 d = 1024*4*4
 # x: Float[T, "B T C"] (batch, seq_len, embedding)
@@ -38,9 +38,11 @@ class Config:
     bias: bool =  False
     dropout: float = .1
     block_size: int = 16
+    device: str = 'mps'
 
 config = Config()
-# print(config.n_head)
+
+x.to(config.device)
 
 assert config.n_embd % config.n_head == 0
 
@@ -49,6 +51,7 @@ def timing(r=20):
     global df
     with Timer(f"Constructor({r=})")():
         attn = CausalSelfAttention(config)
+        attn.to(config.device)
 
     with Timer(f"forward({r=}): ")():
         y = attn(x)
