@@ -48,8 +48,8 @@ class PerfCounterTimer:
             counter = len(times)
             out_dict[name]["count"] = counter
             print(
-                f"Name: {name}, Count: {counter}, Total Time: {min_total_time:7.2f} seconds, "
-                + f"Timings: {mean_total_time / counter:7.2f} each"
+                f"Name: {name}, Count: {counter}, Total Time: {min_total_time:7.4f} seconds, "
+                + f"Timings: {mean_total_time / counter:7.4f} each"
             )
         print()
         # Update the DataFrame with the new data
