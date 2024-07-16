@@ -18,8 +18,8 @@ class LowRankLinear(nn.Linear):
     ) -> None:
         super().__init__(in_features, out_features, *args, **kwargs)
         self.r = r
-        print("kwargs"); pprint(kwargs)
-        print(f"{in_features=}, {out_features=}")
+        # print("kwargs"); pprint(kwargs)
+        # print(f"{in_features=}, {out_features=}")
 
         # could lead to slower convergence if not initialized properly
         # self.low_rank_matrix_B = nn.Parameter(torch.zeros(out_features, r))
@@ -31,12 +31,14 @@ class LowRankLinear(nn.Linear):
         """
         output: input @ (B @ A) + bias
         """
-        print(f"{input.shape=}")
-        print(f"{self.low_rank_matrix_B.shape=}")
-        print(f"{self.low_rank_matrix_A.shape=}")
+        # print(f"{input.shape=}")
+        # print(f"{self.low_rank_matrix_B.shape=}")
+        # print(f"{self.low_rank_matrix_A.shape=}")
         # print(f"Floats: {input.shape[0]
 
         if self.bias is not None:
             return (input @ self.low_rank_matrix_B) @ self.low_rank_matrix_A + self.bias
         else:
+            # print(f"{input.shape=}, {self.low_rank_matrix_B=}, {self.low_rank_matrix_A.shape=}")
             return (input @ self.low_rank_matrix_B) @ self.low_rank_matrix_A
+
